@@ -214,27 +214,44 @@ func (h Accessor[A]) All() iter.Seq2[EntityId, *A]
 func (h Accessor2[A, B]) Get(id EntityId) (*A, *B, bool)
 func (h Accessor2[A, B]) Has(id EntityId) bool
 func (h Accessor2[A, B]) Add(id EntityId, a A, b B) // bundle attach
-// Joined iteration. Go's iter package has only Seq and Seq2, so an arity-2
-// iterator is an explicit range-over-func signature rather than an iter type.
-func (h Accessor2[A, B]) All() func(yield func(EntityId, *A, *B) bool)
-```
+func (h Accessor2[A, B]) All() iter.Seq2[EntityId, Tuple2[A, B]]
 
-The single-component `All` returns `iter.Seq2[EntityId, *A]`.
+// Iteration element for arity 2. The component pointers are unexported and
+// unpacked with Values. TupleN exists for each arity.
+type Tuple2[A, B any] struct { /* unexported *A, *B */ }
+func (t Tuple2[A, B]) Values() (*A, *B)
+```
 
 The numbered variants (`Components2`, `Components3`, and so on) exist because Go has no variadic
 type parameters. The unnumbered `Components` is the arity-1 case, following the same convention as
 Ark's `Map` and `Map2`.
 
-Usage:
+Iteration is range-over-func at every arity, which is what keeps depth tracking and auto-flush
+robust against `break`, `return`, and panic; a manual cursor (`Next`/`Get`) could not hook those
+early exits and would leak the depth counter. Go's range-over-func allows at most two loop
+variables, so the uniform shape is "identifier first, payload second":
+
+* Arity 1: the payload is the component pointer directly, `iter.Seq2[EntityId, *A]`.
+* Arity 2 and higher: the payload is a `TupleN` of component pointers, unpacked with `Values`.
+
+```go
+for id, pos := range positions.All() { // arity 1
+    pos.X += 1
+    _ = id
+}
+
+for id, c := range moving.All() {      // arity 2
+    pos, vel := c.Values()
+    pos.X += vel.DX
+    _ = id
+}
+```
+
+Construction and structural mutation:
 
 ```go
 positions := ecs.Components[Position](world)
 moving    := ecs.Components2[Position, Velocity](world)
-
-for id, pos := range positions.All() {
-    pos.X += 1 // immediate, in place
-    _ = id
-}
 
 e := world.NewEntity()
 positions.Add(e, Position{X: 10})
