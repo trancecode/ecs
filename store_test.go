@@ -81,6 +81,25 @@ func TestComponentStoreRemoveAbsentIsNoop(t *testing.T) {
 	s.applyRemove(newEntityId(1)) // must not panic
 }
 
+func TestComponentStoreRemoveLast(t *testing.T) {
+	s := newComponentStore[position]()
+	a := newEntityId(1)
+	s.applyAdd(a, position{X: 42})
+	s.applyRemove(a)
+	if s.has(a) {
+		t.Fatal("removed single element must be absent")
+	}
+	if len(s.dense) != 0 {
+		t.Fatalf("dense not empty after removing last: len=%d", len(s.dense))
+	}
+	if len(s.ids) != 0 {
+		t.Fatalf("ids not empty after removing last: len=%d", len(s.ids))
+	}
+	if len(s.index) != 0 {
+		t.Fatalf("index not empty after removing last: len=%d", len(s.index))
+	}
+}
+
 func TestComponentStoreRaw(t *testing.T) {
 	s := newComponentStore[position]()
 	a, b := newEntityId(1), newEntityId(2)

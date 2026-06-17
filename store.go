@@ -54,10 +54,12 @@ func (s *componentStore[C]) applyRemove(id EntityId) {
 		return
 	}
 	last := len(s.dense) - 1
-	movedID := s.ids[last]
-	s.dense[i] = s.dense[last]
-	s.ids[i] = movedID
-	s.index[movedID] = i
+	if i != last {
+		movedID := s.ids[last]
+		s.dense[i] = s.dense[last]
+		s.ids[i] = movedID
+		s.index[movedID] = i
+	}
 	s.dense = s.dense[:last]
 	s.ids = s.ids[:last]
 	delete(s.index, id)
