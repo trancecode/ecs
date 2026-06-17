@@ -81,7 +81,8 @@ func storeOf[C any](w *World) *componentStore[C] {
 }
 
 // beginIteration marks the start of an iteration. Structural changes issued
-// while depth is above 0 are deferred.
+// while depth is above 0 are deferred. Callers must pair this with a deferred
+// call to endIteration so the depth is restored on every exit path.
 func (w *World) beginIteration() {
 	w.depth.Add(1)
 }
@@ -99,6 +100,11 @@ func (w *World) endIteration() {
 // It is invoked automatically when an iteration unwinds to depth 0, and is also
 // available as an explicit escape hatch for code that must materialize pending
 // changes before a non-iterating step (point reads, serialization).
+//
+// Commands enqueued by a running command are not drained in the same call; an
+// explicit Flush (or the next iteration) runs them. This does not arise in
+// version 1, where deferred commands apply their changes directly rather than
+// enqueueing more work.
 func (w *World) Flush() {
 	w.mu.Lock()
 	cmds := w.commands
