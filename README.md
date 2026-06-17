@@ -135,6 +135,13 @@ Migration is mechanical: swap the id type, drop `BaseEntity` and the `EntityId()
 replace direct store access with handles, and audit any code that cached a component pointer across
 a structural change.
 
+## Versioning
+
+The module follows [semantic versioning](https://semver.org). The version lives in
+`ecs/VERSION` (embedded into the binary) and is reported at runtime by `ecs.Version()`;
+releases are published as matching `vMAJOR.MINOR.PATCH` git tags. The current version is
+`0.1.0` — pre-1.0, so the public API may still change as it stabilizes.
+
 ## Stability
 
 Version 1 is the entity-and-component core plus deferred structural changes. Systems scheduling,
