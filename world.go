@@ -79,3 +79,32 @@ func storeOf[C any](w *World) *componentStore[C] {
 	w.stores[t] = s
 	return s
 }
+
+// beginIteration marks the start of an iteration. Structural changes issued
+// while depth is above 0 are deferred.
+func (w *World) beginIteration() {
+	w.depth.Add(1)
+}
+
+// endIteration marks the end of an iteration. When the outermost iteration ends
+// (depth returns to 0) the deferred command buffer is flushed. It is registered
+// with defer by iterators, so it runs on normal completion, break, and panic.
+func (w *World) endIteration() {
+	if w.depth.Add(-1) == 0 {
+		w.Flush()
+	}
+}
+
+// Flush applies all deferred structural changes in the order they were queued.
+// It is invoked automatically when an iteration unwinds to depth 0, and is also
+// available as an explicit escape hatch for code that must materialize pending
+// changes before a non-iterating step (point reads, serialization).
+func (w *World) Flush() {
+	w.mu.Lock()
+	cmds := w.commands
+	w.commands = nil
+	w.mu.Unlock()
+	for _, cmd := range cmds {
+		cmd()
+	}
+}
