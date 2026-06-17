@@ -31,8 +31,9 @@ func Components2[A, B any](w *World) Accessor2[A, B] {
 	}
 }
 
-// Get returns interior pointers to both components. The bool is true only when
-// the entity has both.
+// Get returns interior pointers to both components, each valid until the next
+// structural change to the respective store. The bool is true only when the
+// entity has both.
 func (h Accessor2[A, B]) Get(id EntityId) (*A, *B, bool) {
 	a, ok := h.storeA.get(id)
 	if !ok {
@@ -71,7 +72,9 @@ func (h Accessor2[A, B]) Add(id EntityId, a A, b B) {
 }
 
 // All iterates every entity that has both components, yielding the identifier
-// and a Tuple2 of interior pointers. It iterates the A store and looks up B.
+// and a Tuple2 of interior pointers. The pointers are valid only within the loop
+// body; do not retain them past a structural change to either store. It iterates
+// the A store and looks up B.
 func (h Accessor2[A, B]) All() iter.Seq2[EntityId, Tuple2[A, B]] {
 	return func(yield func(EntityId, Tuple2[A, B]) bool) {
 		h.w.beginIteration()

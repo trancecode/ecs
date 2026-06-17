@@ -75,3 +75,18 @@ func TestComponents2AddOnDeadEntityIsNoop(t *testing.T) {
 		t.Fatal("bundle Add on a dead entity must be a no-op")
 	}
 }
+
+func TestComponents2AllExcludesBOnlyEntity(t *testing.T) {
+	w := NewWorld()
+	moving := Components2[position, velocity](w)
+	vel := Components[velocity](w)
+
+	bOnly := w.NewEntity()
+	vel.Add(bOnly, velocity{DX: 7}) // has velocity (B) but not position (A)
+
+	for id := range moving.All() {
+		if id == bOnly {
+			t.Fatal("entity with only B must be excluded from the join")
+		}
+	}
+}
