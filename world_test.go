@@ -2,7 +2,9 @@ package ecs
 
 import "testing"
 
-func TestNewEntityAllocatesValidIncreasingIds(t *testing.T) {
+func TestNewEntityAllocatesDistinctValidIds(t *testing.T) {
+	// Ids are opaque, so strict ordering cannot be asserted from outside the
+	// package; distinctness and validity are the observable contract.
 	w := NewWorld()
 	a := w.NewEntity()
 	b := w.NewEntity()
@@ -11,6 +13,15 @@ func TestNewEntityAllocatesValidIncreasingIds(t *testing.T) {
 	}
 	if a == b {
 		t.Fatal("ids must be distinct")
+	}
+}
+
+func TestRemoveEntityUnknownIdIsNoop(t *testing.T) {
+	w := NewWorld()
+	ghost := newEntityId(999) // never allocated
+	w.RemoveEntity(ghost)     // must not panic
+	if w.IsAlive(ghost) {
+		t.Fatal("a never-allocated id must not be alive")
 	}
 }
 
