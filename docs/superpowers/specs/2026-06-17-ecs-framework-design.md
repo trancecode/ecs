@@ -314,6 +314,16 @@ These are not built in version 1. The point is that each can be added without br
   mutable handle hands out, as Bevy does for mutable access) and a precise opt-in `Modify(id,
   func(*C))` route (the closure call is the hook). Neither is in version 1; the read-only versus
   mutable handle distinction and the `Modify` method are recorded as the seams.
+* Read-only access annotation (for example a `ReadComponents[A]` handle or a `.ReadOnly()` view) is
+  intentionally not shipped in version 1, even though it would let clients annotate intent early.
+  Its semantics are exactly the deferred decision above: whether read-only `Get` returns `*A`
+  (a tag for observability, no enforcement) or `A` (enforced immutability via copy). Shipping a
+  tag-only version that still returns a mutable pointer would be a correctness hazard for the
+  conservative change-detection route, since a client could mutate through a pointer the framework
+  believes is read-only and the write would go unmarked. A no-op distinction would also be adopted
+  inconsistently, so the intent metadata it captures would be unreliable. It is therefore added
+  later, with teeth (a real benefit or enforcement) and a settled return type, when observability
+  or change detection is built; the client migration is opt-in, localized, and mechanical.
 * Archetype storage: the access handles hide the storage model, and multi-component handles declare
   the access signatures an archetype backend would use. Swapping or adding archetype storage is an
   internal change.
