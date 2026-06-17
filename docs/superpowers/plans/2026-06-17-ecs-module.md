@@ -587,13 +587,13 @@ git commit -m "Add World with entity registry and store registry"
 
 ---
 
-## Task 5: Deferred command buffer and depth-tracked flush
+## Task 5: Iteration depth detection, deferred command buffer, and auto-flush
 
 **Files:**
 - Modify: `world.go` (add `beginIteration`, `endIteration`, `Flush`)
 - Test: `flush_test.go`
 
-Implements the auto-flush mechanics in isolation, tested with sentinel closures so the behavior is verified without depending on the component handles built next.
+**This task is critical: the entire deferral model depends on iteration-depth detection working, in particular that the deferred `endIteration` decrement fires on every loop exit path (normal completion, `break`, `return`, and panic), which is exactly what range-over-func guarantees via `defer`.** The tests below exercise that mechanism directly through a `depthTrackedRange` helper that mirrors the real iterator pattern (`beginIteration`; `defer endIteration`; yield loop), so depth detection is verified before any component handle exists. They read `w.depth` directly (white-box, same package) to assert the counter is correct at each point.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -602,43 +602,139 @@ Implements the auto-flush mechanics in isolation, tested with sentinel closures 
 ```go
 package ecs
 
-import "testing"
+import (
+	"iter"
+	"testing"
+)
 
-// runScope simulates one iterator's lifetime: begin, run body, end.
-func runScope(w *World, body func()) {
-	w.beginIteration()
-	defer w.endIteration()
-	body()
+// depthTrackedRange mirrors the real iterator pattern (Accessor.All): it brackets
+// the loop with beginIteration and a deferred endIteration, so it exercises the
+// exact depth-detection mechanism the framework relies on, independent of the
+// component handles. n is how many times it yields.
+func depthTrackedRange(w *World, n int) iter.Seq[int] {
+	return func(yield func(int) bool) {
+		w.beginIteration()
+		defer w.endIteration()
+		for i := 0; i < n; i++ {
+			if !yield(i) {
+				return
+			}
+		}
+	}
+}
+
+func TestDepthIsZeroOutsideIteration(t *testing.T) {
+	w := NewWorld()
+	if d := w.depth.Load(); d != 0 {
+		t.Fatalf("initial depth = %d, want 0", d)
+	}
+}
+
+func TestDepthIsOneDuringIteration(t *testing.T) {
+	w := NewWorld()
+	for range depthTrackedRange(w, 3) {
+		if d := w.depth.Load(); d != 1 {
+			t.Fatalf("depth during iteration = %d, want 1", d)
+		}
+	}
+}
+
+func TestDepthReturnsToZeroAfterNormalLoop(t *testing.T) {
+	w := NewWorld()
+	for range depthTrackedRange(w, 3) {
+	}
+	if d := w.depth.Load(); d != 0 {
+		t.Fatalf("depth after loop = %d, want 0", d)
+	}
+}
+
+// Critical: defer must fire on early break so depth is restored.
+func TestDepthReturnsToZeroAfterBreak(t *testing.T) {
+	w := NewWorld()
+	for range depthTrackedRange(w, 10) {
+		break
+	}
+	if d := w.depth.Load(); d != 0 {
+		t.Fatalf("depth after break = %d, want 0", d)
+	}
+}
+
+// Critical: defer must fire while a panic unwinds so depth is restored.
+func TestDepthReturnsToZeroAfterPanic(t *testing.T) {
+	w := NewWorld()
+	func() {
+		defer func() { _ = recover() }()
+		for range depthTrackedRange(w, 10) {
+			panic("boom")
+		}
+	}()
+	if d := w.depth.Load(); d != 0 {
+		t.Fatalf("depth after recovered panic = %d, want 0", d)
+	}
+}
+
+func TestDepthNestsAndUnwinds(t *testing.T) {
+	w := NewWorld()
+	for range depthTrackedRange(w, 1) {
+		if d := w.depth.Load(); d != 1 {
+			t.Fatalf("outer depth = %d, want 1", d)
+		}
+		for range depthTrackedRange(w, 1) {
+			if d := w.depth.Load(); d != 2 {
+				t.Fatalf("nested depth = %d, want 2", d)
+			}
+		}
+		if d := w.depth.Load(); d != 1 {
+			t.Fatalf("depth after nested loop = %d, want 1", d)
+		}
+	}
+	if d := w.depth.Load(); d != 0 {
+		t.Fatalf("final depth = %d, want 0", d)
+	}
 }
 
 func TestDeferredCommandRunsOnUnwindToZero(t *testing.T) {
 	w := NewWorld()
 	ran := false
-	runScope(w, func() {
+	for range depthTrackedRange(w, 1) {
 		w.enqueue(func() { ran = true })
 		if ran {
 			t.Fatal("command must not run during the iteration")
 		}
-	})
+	}
 	if !ran {
 		t.Fatal("command must run when depth unwinds to 0")
+	}
+}
+
+// Critical: a change queued before an early break must still flush, because
+// endIteration fires on break.
+func TestDeferredCommandFlushesEvenAfterBreak(t *testing.T) {
+	w := NewWorld()
+	ran := false
+	for range depthTrackedRange(w, 10) {
+		w.enqueue(func() { ran = true })
+		break
+	}
+	if !ran {
+		t.Fatal("deferred command must flush even when the loop breaks early")
 	}
 }
 
 func TestNestedIterationDoesNotFlushEarly(t *testing.T) {
 	w := NewWorld()
 	ran := false
-	runScope(w, func() { // depth 0->1
+	for range depthTrackedRange(w, 1) { // depth 0->1
 		w.enqueue(func() { ran = true })
-		runScope(w, func() { // depth 1->2->1, no flush
+		for range depthTrackedRange(w, 1) { // depth 1->2->1, no flush
 			if ran {
 				t.Fatal("nested iteration must not flush")
 			}
-		})
+		}
 		if ran {
 			t.Fatal("command must not run while outer iteration is active")
 		}
-	}) // depth 1->0, flush
+	} // depth 1->0, flush
 	if !ran {
 		t.Fatal("command must run after the outermost iteration ends")
 	}
@@ -647,11 +743,11 @@ func TestNestedIterationDoesNotFlushEarly(t *testing.T) {
 func TestCommandsRunInFifoOrder(t *testing.T) {
 	w := NewWorld()
 	var order []int
-	runScope(w, func() {
+	for range depthTrackedRange(w, 1) {
 		w.enqueue(func() { order = append(order, 1) })
 		w.enqueue(func() { order = append(order, 2) })
 		w.enqueue(func() { order = append(order, 3) })
-	})
+	}
 	if len(order) != 3 || order[0] != 1 || order[1] != 2 || order[2] != 3 {
 		t.Fatalf("commands ran out of order: %v", order)
 	}
@@ -673,7 +769,7 @@ func TestExplicitFlushAtDepthZero(t *testing.T) {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `go test ./... -run 'TestDeferred|TestNested|TestCommandsRun|TestExplicitFlush' -v`
+Run: `go test ./... -run 'TestDepth|TestDeferred|TestNested|TestCommandsRun|TestExplicitFlush' -v`
 Expected: FAIL, "w.beginIteration undefined" / "w.Flush undefined".
 
 - [ ] **Step 3: Write minimal implementation**
@@ -713,8 +809,8 @@ func (w *World) Flush() {
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `go test ./... -run 'TestDeferred|TestNested|TestCommandsRun|TestExplicitFlush' -v`
-Expected: PASS (all four).
+Run: `go test ./... -run 'TestDepth|TestDeferred|TestNested|TestCommandsRun|TestExplicitFlush' -v`
+Expected: PASS (all depth-detection and flush tests).
 
 - [ ] **Step 5: Commit**
 
@@ -820,6 +916,22 @@ func TestComponentsAllIteratesAndMutatesThroughPointer(t *testing.T) {
 	pb, _ := pos.Get(b)
 	if pa.X != 11 || pb.X != 12 {
 		t.Fatalf("mutations not persisted: a=%v b=%v", pa.X, pb.X)
+	}
+}
+
+// The production All() iterator (not just the test mirror) must restore depth
+// to 0 when the caller breaks out early.
+func TestComponentsAllRestoresDepthAfterBreak(t *testing.T) {
+	w := NewWorld()
+	pos := Components[position](w)
+	pos.Add(w.NewEntity(), position{X: 1})
+	pos.Add(w.NewEntity(), position{X: 2})
+
+	for range pos.All() {
+		break
+	}
+	if d := w.depth.Load(); d != 0 {
+		t.Fatalf("depth after break in All() = %d, want 0", d)
 	}
 }
 ```
@@ -1424,6 +1536,7 @@ git commit -m "Add README and runnable usage example"
 * `go vet ./...` is clean.
 * Public surface matches the spec: `EntityId`, `World` (`NewWorld`, `NewEntity`, `RemoveEntity`, `IsAlive`, `Flush`), `Components`/`Accessor[A]`, `Components2`/`Accessor2[A, B]`, `Tuple2`.
 * Deferred structural changes, auto-flush on iteration unwind, immediate-at-depth-0, and liveness validation at apply time all have passing tests.
+* Iteration-depth detection is verified to restore depth to 0 on normal completion, early `break`, and recovered `panic`, and to nest correctly (depth 2 inside a nested loop), both through the `depthTrackedRange` mirror and the production `All()` iterator.
 
 ## Notes for the implementer
 
