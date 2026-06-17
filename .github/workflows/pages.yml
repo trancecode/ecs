@@ -1,0 +1,69 @@
+name: Docs
+
+# Generates a static godoc site with pkgsite and publishes it to GitHub Pages.
+#
+# Prerequisite (one-time, in repo settings): Settings -> Pages -> Build and
+# deployment -> Source: "GitHub Actions". The same documentation is always
+# available with no setup at https://pkg.go.dev/github.com/trancecode/ecs/ecs.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      PKG: github.com/trancecode/ecs/ecs
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Generate static godoc
+        run: |
+          go install golang.org/x/pkgsite/cmd/pkgsite@latest
+          "$(go env GOPATH)/bin/pkgsite" -http=localhost:8080 . &
+          PID=$!
+          # Wait for the server to answer for our package.
+          for _ in $(seq 1 60); do
+            curl -sf "http://localhost:8080/$PKG" >/dev/null && break
+            sleep 1
+          done
+          mkdir -p site
+          wget --recursive --level=4 --no-parent --convert-links --page-requisites \
+               --adjust-extension --execute robots=off --no-host-directories \
+               --directory-prefix=site "http://localhost:8080/$PKG" || true
+          kill "$PID" 2>/dev/null || true
+          # Root redirect to the package page, and disable Jekyll so pkgsite's
+          # static asset directories are served as-is.
+          printf '<!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="0; url=./%s.html"><a href="./%s.html">ecs documentation</a>\n' "$PKG" "$PKG" > site/index.html
+          touch site/.nojekyll
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
