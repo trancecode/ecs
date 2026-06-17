@@ -10,6 +10,9 @@ import (
 type World struct {
 	nextID atomic.Uint64
 
+	// alive is the liveness set. In v1 (sequential use) it is unsynchronized; it
+	// is the remaining registry state to put behind mu when parallel iteration is
+	// introduced (depth and commands are already concurrency-ready).
 	alive  map[EntityId]struct{}
 	stores map[reflect.Type]componentStorage
 

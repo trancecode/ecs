@@ -48,6 +48,71 @@ func TestRemoveEntityDuringIterationIsDeferred(t *testing.T) {
 	}
 }
 
+func TestRemoveComponentDuringIterationIsDeferred(t *testing.T) {
+	w := NewWorld()
+	pos := Components[position](w)
+	a := w.NewEntity()
+	b := w.NewEntity()
+	pos.Add(a, position{X: 1})
+	pos.Add(b, position{X: 2})
+
+	for id := range pos.All() {
+		if id == a {
+			pos.Remove(a) // deferred during iteration
+			if !pos.Has(a) {
+				t.Fatal("Remove during iteration must be deferred")
+			}
+		}
+	}
+	if pos.Has(a) {
+		t.Fatal("deferred Remove must take effect after the iteration flushes")
+	}
+	if !pos.Has(b) {
+		t.Fatal("an untouched entity must be unaffected")
+	}
+}
+
+func TestComponents2AddDuringIterationIsDeferred(t *testing.T) {
+	w := NewWorld()
+	moving := Components2[position, velocity](w)
+	seed := w.NewEntity()
+	moving.Add(seed, position{X: 1}, velocity{DX: 1})
+
+	target := w.NewEntity()
+	for range moving.All() {
+		moving.Add(target, position{X: 5}, velocity{DX: 5}) // deferred bundle attach
+		if moving.Has(target) {
+			t.Fatal("bundle Add during iteration must be deferred")
+		}
+	}
+	if !moving.Has(target) {
+		t.Fatal("deferred bundle Add must be visible after the iteration ends")
+	}
+}
+
+func TestRemoveEntityThenAddOrderingAtFlush(t *testing.T) {
+	w := NewWorld()
+	pos := Components[position](w)
+	e := w.NewEntity()
+	pos.Add(e, position{X: 1})
+
+	// A separate, non-empty store to iterate so the two commands below defer.
+	marker := Components[velocity](w)
+	marker.Add(w.NewEntity(), velocity{})
+
+	for range marker.All() {
+		w.RemoveEntity(e)          // queued first: destroys e at flush
+		pos.Add(e, position{X: 9}) // queued second: must no-op (e is dead at apply time)
+	}
+
+	if w.IsAlive(e) {
+		t.Fatal("RemoveEntity queued before Add must win: entity destroyed at flush")
+	}
+	if pos.Has(e) {
+		t.Fatal("Add after RemoveEntity on the same entity must no-op at apply time")
+	}
+}
+
 func TestPointReadAfterIterationSeesDeferredChanges(t *testing.T) {
 	w := NewWorld()
 	pos := Components[position](w)
