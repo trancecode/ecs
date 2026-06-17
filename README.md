@@ -7,6 +7,13 @@ sets. Typed handles read and mutate components through interior pointers.
 Structural changes apply immediately outside iteration and are deferred to an
 automatic flush during iteration, so pointers stay valid for the iteration.
 
+## Install
+
+    import "github.com/trancecode/ecs/ecs"
+
+The package lives in the `ecs/` subdirectory, and every source file in it is named
+`ecs_<something>.go`.
+
 ## Usage
 
     w := ecs.NewWorld()

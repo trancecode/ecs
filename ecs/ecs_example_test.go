@@ -3,7 +3,7 @@ package ecs_test
 import (
 	"fmt"
 
-	"github.com/trancecode/ecs"
+	"github.com/trancecode/ecs/ecs"
 )
 
 type Position struct{ X, Y float64 }
