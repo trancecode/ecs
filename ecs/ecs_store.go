@@ -1,9 +1,11 @@
 package ecs
 
 // componentStorage is the untyped view of a component store, so the World can
-// remove an entity from every store without knowing the component type.
+// remove an entity from every store, and report its size, without knowing the
+// component type.
 type componentStorage interface {
 	removeEntity(id EntityId)
+	count() int
 }
 
 // componentStore is a sparse set for one component type C: a dense slice of
@@ -67,6 +69,11 @@ func (s *componentStore[C]) applyRemove(id EntityId) {
 
 func (s *componentStore[C]) removeEntity(id EntityId) {
 	s.applyRemove(id)
+}
+
+// count reports how many entities have this component.
+func (s *componentStore[C]) count() int {
+	return len(s.dense)
 }
 
 // raw exposes the parallel id and value slices for iteration. ids[i] owns

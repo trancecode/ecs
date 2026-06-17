@@ -20,6 +20,12 @@ type World struct {
 
 	mu       sync.Mutex
 	commands []func()
+
+	// Observability counters, maintained only on cold paths (enqueue and flush)
+	// so the read and iterate paths stay untouched. Atomic so Stats can read them
+	// without locking.
+	flushes     atomic.Uint64
+	deferredOps atomic.Uint64
 }
 
 // NewWorld returns an empty world.
@@ -70,6 +76,7 @@ func (w *World) enqueue(cmd func()) {
 	w.mu.Lock()
 	w.commands = append(w.commands, cmd)
 	w.mu.Unlock()
+	w.deferredOps.Add(1)
 }
 
 // storeOf returns the store for component type C, creating it on first use.
@@ -113,6 +120,10 @@ func (w *World) Flush() {
 	cmds := w.commands
 	w.commands = nil
 	w.mu.Unlock()
+	if len(cmds) == 0 {
+		return
+	}
+	w.flushes.Add(1)
 	for _, cmd := range cmds {
 		cmd()
 	}
