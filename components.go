@@ -57,9 +57,10 @@ func (h Accessor[A]) Remove(id EntityId) {
 }
 
 // All iterates every entity that has this component, yielding the identifier and
-// an interior pointer. It is range-over-func, so the depth counter is
-// incremented on entry and decremented on exit (via defer) for any exit path,
-// including break and panic.
+// an interior pointer. The pointer is valid only within the loop; do not retain
+// it across iterations or past a structural change to this store. It is
+// range-over-func, so the depth counter is incremented on entry and decremented
+// on exit (via defer) for any exit path, including break and panic.
 func (h Accessor[A]) All() iter.Seq2[EntityId, *A] {
 	return func(yield func(EntityId, *A) bool) {
 		h.w.beginIteration()
