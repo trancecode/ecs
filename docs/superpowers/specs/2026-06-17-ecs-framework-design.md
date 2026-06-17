@@ -92,6 +92,9 @@ func (EntityId) IsValid() bool
 
 * The zero value is the invalid identifier; real identifiers are allocated monotonically and never
   reused in version 1.
+* `String` renders a prefixed, greppable form: `ent_<n>` (for example `ent_123`) for a real
+  identifier, and `ent_invalid` for the zero value. It is for human-readable logs only; there is no
+  parse-back, since the type is opaque and identifiers are allocated at runtime.
 * The field is unexported so the type is opaque by construction. Callers can pass it around,
   compare it, use it as a map key, write `EntityId{}` for the invalid value, and call its methods.
   Callers cannot fabricate a valid identifier, do arithmetic, or convert to or from `uint64`.
