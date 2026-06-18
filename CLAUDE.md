@@ -97,6 +97,14 @@ This repository is a small, standalone Entity Component System (ECS) library in 
 * Go 1.26 (see `go.mod`). The code relies on range-over-func and the `iter` package.
 * No third-party dependencies, and that is a deliberate property of a foundational library. A new dependency is a significant decision; if one is ever genuinely needed, call it out prominently in the PR description (name, version, purpose, justification, and whether it is test-only).
 
+### Go Version Consistency
+
+`go.mod` is the only place a Go version lives in this repository.
+
+* The `go` directive in `go.mod` is the canonical Go version. Nothing else hardcodes it.
+* Workflows must use `go-version-file: go.mod` (with `check-latest: true`) so `actions/setup-go` derives the version from `go.mod` directly. Never add a hardcoded `go-version:` to a workflow.
+* `.github/workflows/check-go-version.yml` enforces currency: it reads the canonical version from `go.mod`, compares it against the latest stable Go, and opens a PR bumping the single `go` directive when a newer stable Go is released. Because workflows read from `go.mod`, the checker never touches them and there is no version skew to keep in sync.
+
 ### Verification before pushing
 
 Run these from the repository root; all must be clean:
