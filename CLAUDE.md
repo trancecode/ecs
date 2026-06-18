@@ -103,7 +103,7 @@ This repository is a small, standalone Entity Component System (ECS) library in 
     check-latest: true
 ```
 
-Never hardcode a `go-version:` literal in a workflow. The scheduled `check-go-version.yml` workflow compares `go.mod`'s declared version against the latest stable Go release and opens a PR bumping the single `go` directive when it falls behind. Because nothing else carries the version, a bump is a one-line change.
+Never hardcode a `go-version:` literal in a workflow. The scheduled `check-go-version.yml` workflow compares `go.mod`'s declared version against the latest stable Go release and, when it falls behind, opens a `claude`-labelled issue requesting the bump; the autonomous Claude agent then makes the one-line change to the single `go` directive. Because nothing else carries the version, a bump is a one-line change.
 
 ### Dependencies
 
