@@ -92,9 +92,21 @@ This repository is a small, standalone Entity Component System (ECS) library in 
 * Every Go source file in the package is named `ecs_<subsystem>.go` (for example `ecs_world.go`, `ecs_store.go`), with matching tests `ecs_<subsystem>_test.go`. The package doc lives in `ecs/ecs_doc.go`.
 * Keep files small and single-responsibility; split by responsibility, not by technical layer.
 
-### Go version and dependencies
+### Go Version Consistency
 
-* Go 1.26 (see `go.mod`). The code relies on range-over-func and the `iter` package.
+`go.mod` is the single source of truth for this repository's Go version — it is the only place a Go version is written, and the workflows already derive their version from it via `go-version-file: go.mod`:
+
+```yaml
+- uses: actions/setup-go@v5
+  with:
+    go-version-file: go.mod
+    check-latest: true
+```
+
+Never hardcode a `go-version:` literal in a workflow. The scheduled `check-go-version.yml` workflow compares `go.mod`'s declared version against the latest stable Go release and, when it falls behind, opens a `claude`-labelled issue requesting the bump; the autonomous Claude agent then makes the one-line change to the single `go` directive. Because nothing else carries the version, a bump is a one-line change.
+
+### Dependencies
+
 * No third-party dependencies, and that is a deliberate property of a foundational library. A new dependency is a significant decision; if one is ever genuinely needed, call it out prominently in the PR description (name, version, purpose, justification, and whether it is test-only).
 
 ### Verification before pushing
