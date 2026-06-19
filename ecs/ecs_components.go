@@ -79,9 +79,7 @@ func (h Accessor[A]) insertMissing(id EntityId, value A) *A {
 		if !h.w.IsAlive(id) {
 			return &value
 		}
-		h.store.applyAdd(id, value)
-		p, _ := h.store.get(id)
-		return p
+		return h.store.applyAdd(id, value)
 	}
 	store := h.store
 	w := h.w
