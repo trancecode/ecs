@@ -83,6 +83,139 @@ func TestComponentsAllIteratesAndMutatesThroughPointer(t *testing.T) {
 	}
 }
 
+func TestComponentsGetOrAddInsertsWhenMissing(t *testing.T) {
+	w := NewWorld()
+	pos := Components[position](w)
+	a := w.NewEntity()
+
+	p := pos.GetOrAdd(a, position{X: 1, Y: 2})
+	if p == nil {
+		t.Fatal("GetOrAdd must never return nil")
+	}
+	if p.X != 1 || p.Y != 2 {
+		t.Fatalf("GetOrAdd returned %+v, want {1 2}", p)
+	}
+	if !pos.Has(a) {
+		t.Fatal("GetOrAdd must attach the component when missing")
+	}
+	// The returned pointer must be the interior pointer into storage.
+	p.X = 99
+	got, _ := pos.Get(a)
+	if got.X != 99 {
+		t.Fatalf("write through GetOrAdd pointer did not persist: got %v, want 99", got.X)
+	}
+}
+
+func TestComponentsGetOrAddReturnsExistingWithoutOverwriting(t *testing.T) {
+	w := NewWorld()
+	pos := Components[position](w)
+	a := w.NewEntity()
+	pos.Add(a, position{X: 1, Y: 2})
+
+	p := pos.GetOrAdd(a, position{X: 7, Y: 8})
+	if p.X != 1 || p.Y != 2 {
+		t.Fatalf("GetOrAdd on an existing component returned %+v, want the existing {1 2}", p)
+	}
+	got, _ := pos.Get(a)
+	if got.X != 1 || got.Y != 2 {
+		t.Fatalf("GetOrAdd must not overwrite an existing component: got %+v", got)
+	}
+}
+
+func TestComponentsGetOrAddFuncInsertsWhenMissing(t *testing.T) {
+	w := NewWorld()
+	pos := Components[position](w)
+	a := w.NewEntity()
+
+	p := pos.GetOrAddFunc(a, func() position { return position{X: 3, Y: 4} })
+	if p == nil || p.X != 3 || p.Y != 4 {
+		t.Fatalf("GetOrAddFunc returned %+v, want {3 4}", p)
+	}
+	if !pos.Has(a) {
+		t.Fatal("GetOrAddFunc must attach the component when missing")
+	}
+}
+
+func TestComponentsGetOrAddFuncDoesNotCallMakeOnHit(t *testing.T) {
+	w := NewWorld()
+	pos := Components[position](w)
+	a := w.NewEntity()
+	pos.Add(a, position{X: 1})
+
+	called := false
+	p := pos.GetOrAddFunc(a, func() position {
+		called = true
+		return position{X: 9}
+	})
+	if called {
+		t.Fatal("GetOrAddFunc must not call make when the component already exists")
+	}
+	if p.X != 1 {
+		t.Fatalf("GetOrAddFunc returned %+v, want existing {1 0}", p)
+	}
+}
+
+func TestComponentsGetOrAddOnDeadEntityDoesNotStore(t *testing.T) {
+	w := NewWorld()
+	pos := Components[position](w)
+	a := w.NewEntity()
+	w.RemoveEntity(a) // immediate at depth 0
+
+	p := pos.GetOrAdd(a, position{X: 1})
+	if p == nil {
+		t.Fatal("GetOrAdd must never return nil, even for a dead entity")
+	}
+	if pos.Has(a) {
+		t.Fatal("GetOrAdd on a dead entity must not store a component")
+	}
+}
+
+func TestComponentsGetOrAddDuringIterationIsDeferred(t *testing.T) {
+	w := NewWorld()
+	pos := Components[position](w)
+	a := w.NewEntity()
+	pos.Add(a, position{X: 1})
+
+	target := w.NewEntity()
+	var staged *position
+	for range pos.All() {
+		staged = pos.GetOrAdd(target, position{X: 5})
+		if pos.Has(target) {
+			t.Fatal("GetOrAdd during iteration must be deferred, not visible mid-loop")
+		}
+		// The returned pointer must be usable for the rest of the loop.
+		staged.X = 42
+	}
+	// After the loop flushes, the deferred insert carries the mutation made
+	// through the staged pointer.
+	got, ok := pos.Get(target)
+	if !ok {
+		t.Fatal("deferred GetOrAdd must materialize after the iteration ends")
+	}
+	if got.X != 42 {
+		t.Fatalf("mutation through the staged pointer was lost: got %v, want 42", got.X)
+	}
+}
+
+func TestComponentsGetOrAddDuringIterationHitReturnsLivePointer(t *testing.T) {
+	w := NewWorld()
+	pos := Components[position](w)
+	a := w.NewEntity()
+	pos.Add(a, position{X: 1})
+
+	for id := range pos.All() {
+		if id != a {
+			continue
+		}
+		p := pos.GetOrAdd(a, position{X: 99}) // hit path: must not overwrite
+		p.X += 10
+	}
+	got, _ := pos.Get(a)
+	if got.X != 11 {
+		t.Fatalf("hit-path GetOrAdd during iteration: got %v, want 11", got.X)
+	}
+}
+
 // The production All() iterator (not just the test mirror) must restore depth
 // to 0 when the caller breaks out early.
 func TestComponentsAllRestoresDepthAfterBreak(t *testing.T) {

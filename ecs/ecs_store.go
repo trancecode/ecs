@@ -36,16 +36,19 @@ func (s *componentStore[C]) get(id EntityId) (*C, bool) {
 	return &s.dense[i], true
 }
 
-// applyAdd inserts or overwrites the component for id. This is the immediate,
+// applyAdd inserts or overwrites the component for id and returns an interior
+// pointer to it, valid until the next structural change. This is the immediate,
 // low-level mutation; deferral is decided by the caller.
-func (s *componentStore[C]) applyAdd(id EntityId, c C) {
+func (s *componentStore[C]) applyAdd(id EntityId, c C) *C {
 	if i, ok := s.index[id]; ok {
 		s.dense[i] = c
-		return
+		return &s.dense[i]
 	}
-	s.index[id] = len(s.dense)
+	i := len(s.dense)
+	s.index[id] = i
 	s.dense = append(s.dense, c)
 	s.ids = append(s.ids, id)
+	return &s.dense[i]
 }
 
 // applyRemove deletes the component for id with swap-and-pop. Absent id is a

@@ -68,8 +68,8 @@ func main() {
   invalid; `id.IsValid()` and `id.String()` (`"ent_42"`) are available.
 * **Component** — any plain struct. No interface, no embedding, no required id field.
 * **Handle** — `Components[A]` (single) and `Components2[A, B]` / `Components3[...]` (joins)
-  give `Get`, `Has`, `Add`, and `All`. The single-component handle also has `Remove`.
-  Construct once and reuse.
+  give `Get`, `Has`, `Add`, and `All`. The single-component handle also has `Remove` and the
+  get-or-create pair `GetOrAdd`/`GetOrAddFunc`. Construct once and reuse.
 * **Interior pointers** — `Get` and iteration return `*A` pointing into storage. Write through
   them and the change is immediate. A pointer is valid until the next structural change to that
   store; do not retain it across one.
@@ -96,6 +96,8 @@ func (*World) Stats() Stats         // observability snapshot
 
 func Components[A any](*World) Accessor[A]
 func (Accessor[A]) Get(EntityId) (*A, bool)
+func (Accessor[A]) GetOrAdd(EntityId, A) *A
+func (Accessor[A]) GetOrAddFunc(EntityId, func() A) *A
 func (Accessor[A]) Has(EntityId) bool
 func (Accessor[A]) Add(EntityId, A)
 func (Accessor[A]) Remove(EntityId)

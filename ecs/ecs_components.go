@@ -45,6 +45,52 @@ func (h Accessor[A]) Add(id EntityId, a A) {
 	})
 }
 
+// GetOrAdd returns the interior pointer to the entity's component, adding value
+// first if the component is absent. The result is never nil and, like Get and
+// iteration, is valid until the next structural change to this store. The add
+// honours the same deferral rules as Add: immediate at depth 0, deferred during
+// an iteration (where the returned pointer is to a staged value that the flush
+// inserts, so writes through it survive into the store).
+func (h Accessor[A]) GetOrAdd(id EntityId, value A) *A {
+	if p, ok := h.store.get(id); ok {
+		return p
+	}
+	return h.insertMissing(id, value)
+}
+
+// GetOrAddFunc returns the interior pointer to the entity's component, adding a
+// value built by make first if the component is absent. make is called only when
+// the component does not already exist, so nothing is constructed on the hit
+// path. The result follows the same validity and deferral rules as GetOrAdd.
+func (h Accessor[A]) GetOrAddFunc(id EntityId, make func() A) *A {
+	if p, ok := h.store.get(id); ok {
+		return p
+	}
+	return h.insertMissing(id, make())
+}
+
+// insertMissing attaches value for an entity already known to lack the component
+// and returns a non-nil pointer to it. At depth 0 the add is immediate (skipped
+// for a dead entity, in which case the returned pointer is to the unstored
+// value); during an iteration it is deferred and the returned pointer is to the
+// staged value the flush inserts.
+func (h Accessor[A]) insertMissing(id EntityId, value A) *A {
+	if h.w.depth.Load() == 0 {
+		if !h.w.IsAlive(id) {
+			return &value
+		}
+		return h.store.applyAdd(id, value)
+	}
+	store := h.store
+	w := h.w
+	w.enqueue(func() {
+		if w.IsAlive(id) {
+			store.applyAdd(id, value)
+		}
+	})
+	return &value
+}
+
 // Remove detaches the component from the entity. Immediate at depth 0, deferred
 // during an iteration.
 func (h Accessor[A]) Remove(id EntityId) {
