@@ -42,6 +42,7 @@ jobs:
             function getLastSubstantiveComment(comments) {
               // Filter out dependency status comments and other automated comments
               const substantiveComments = comments.filter(c =>
+                c.user.login !== 'github-actions[bot]' &&
                 !c.body.includes('## 🔗 Dependency Status') &&
                 !c.body.includes('*This comment is automatically updated by')
               );
