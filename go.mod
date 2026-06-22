@@ -1,3 +1,3 @@
 module github.com/trancecode/ecs
 
-go 1.26
+go 1.26.4
