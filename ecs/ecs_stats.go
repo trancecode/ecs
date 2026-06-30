@@ -1,5 +1,11 @@
 package ecs
 
+import (
+	"fmt"
+	"sort"
+	"strings"
+)
+
 // Stats is a point-in-time snapshot of a World's size and activity, for
 // observability.
 //
@@ -39,4 +45,24 @@ func (w *World) Stats() Stats {
 		Flushes:         w.flushes.Load(),
 		DeferredOps:     w.deferredOps.Load(),
 	}
+}
+
+// String returns a human-readable one-line summary of the world: the live entity
+// count followed by each component type and its live count, ordered by type name.
+// The component inventory is derived generically from the registered stores via
+// Stats, so World satisfies fmt.Stringer with no per-type maintenance.
+func (w *World) String() string {
+	stats := w.Stats()
+	names := make([]string, 0, len(stats.Components))
+	for name := range stats.Components {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	var b strings.Builder
+	fmt.Fprintf(&b, "World(entities=%d", stats.Entities)
+	for _, name := range names {
+		fmt.Fprintf(&b, ", %s=%d", name, stats.Components[name])
+	}
+	b.WriteByte(')')
+	return b.String()
 }

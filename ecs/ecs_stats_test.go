@@ -1,6 +1,7 @@
 package ecs
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 )
@@ -70,5 +71,31 @@ func TestStatsPendingCommands(t *testing.T) {
 	}
 	if s := w.Stats(); s.PendingCommands != 0 {
 		t.Fatalf("PendingCommands after flush = %d, want 0", s.PendingCommands)
+	}
+}
+
+func TestWorldStringListsComponentsSortedByName(t *testing.T) {
+	w := NewWorld()
+	pos := Components[position](w)
+	vel := Components[velocity](w)
+	a := w.NewEntity()
+	b := w.NewEntity()
+	pos.Add(a, position{})
+	pos.Add(b, position{})
+	vel.Add(a, velocity{})
+
+	posName := reflect.TypeFor[position]().String()
+	velName := reflect.TypeFor[velocity]().String()
+	// Components are listed by sorted type name; "ecs.position" sorts before
+	// "ecs.velocity".
+	want := fmt.Sprintf("World(entities=2, %s=2, %s=1)", posName, velName)
+	if got := w.String(); got != want {
+		t.Fatalf("String() = %q, want %q", got, want)
+	}
+}
+
+func TestWorldStringEmpty(t *testing.T) {
+	if got := NewWorld().String(); got != "World(entities=0)" {
+		t.Fatalf("String() = %q, want %q", got, "World(entities=0)")
 	}
 }
