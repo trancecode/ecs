@@ -5,16 +5,8 @@ name: Code Analysis
 on:
   push:
     branches: [ "main" ]
-    paths-ignore:
-      - '**.md'
-      - 'LICENSE'
-      - 'docs/**'
   pull_request:
     branches: [ "main" ]
-    paths-ignore:
-      - '**.md'
-      - 'LICENSE'
-      - 'docs/**'
 
 permissions:
   contents: read
