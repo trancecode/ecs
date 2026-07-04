@@ -1,6 +1,9 @@
 package ecs
 
-import "strconv"
+import (
+	"cmp"
+	"strconv"
+)
 
 // EntityId is an opaque, comparable identifier for an entity.
 //
@@ -21,6 +24,16 @@ func newEntityId(v uint64) EntityId {
 // zero value).
 func (e EntityId) IsValid() bool {
 	return e.v != 0
+}
+
+// Compare defines a total order over entity identifiers, consistent with
+// allocation order: an earlier-allocated entity sorts before a later one. It
+// returns a negative value, zero, or a positive value as e sorts before, equal
+// to, or after other. The zero (invalid) identifier sorts before every
+// allocated one. Comparison does not expose the representation the way an
+// integer conversion would, so it preserves the type's opacity.
+func (e EntityId) Compare(other EntityId) int {
+	return cmp.Compare(e.v, other.v)
 }
 
 // String renders a prefixed, greppable form for logs: "ent_123" for a real
