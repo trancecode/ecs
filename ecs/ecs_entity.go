@@ -2,6 +2,8 @@ package ecs
 
 import (
 	"cmp"
+	"encoding/binary"
+	"fmt"
 	"strconv"
 )
 
@@ -34,6 +36,26 @@ func (e EntityId) IsValid() bool {
 // integer conversion would, so it preserves the type's opacity.
 func (e EntityId) Compare(other EntityId) int {
 	return cmp.Compare(e.v, other.v)
+}
+
+// MarshalBinary encodes the identifier as 8 big-endian bytes. It implements
+// encoding.BinaryMarshaler so entity ids can be persisted in savegames. The
+// encoding is stable.
+func (e EntityId) MarshalBinary() ([]byte, error) {
+	b := make([]byte, 8)
+	binary.BigEndian.PutUint64(b, e.v)
+	return b, nil
+}
+
+// UnmarshalBinary decodes 8 big-endian bytes produced by MarshalBinary. It
+// returns an error if data is not exactly 8 bytes. It is used only when
+// restoring a saved world.
+func (e *EntityId) UnmarshalBinary(data []byte) error {
+	if len(data) != 8 {
+		return fmt.Errorf("ecs.EntityId.UnmarshalBinary: expected 8 bytes, got %d", len(data))
+	}
+	e.v = binary.BigEndian.Uint64(data)
+	return nil
 }
 
 // String renders a prefixed, greppable form for logs: "ent_123" for a real

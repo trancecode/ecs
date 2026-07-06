@@ -61,6 +61,32 @@ func TestEntityIdCompareInvalidSortsFirst(t *testing.T) {
 	}
 }
 
+func TestEntityIdBinaryRoundTrip(t *testing.T) {
+	for _, id := range []EntityId{{}, newEntityId(1), newEntityId(1 << 40)} {
+		b, err := id.MarshalBinary()
+		if err != nil {
+			t.Fatalf("MarshalBinary(%v): %v", id, err)
+		}
+		if len(b) != 8 {
+			t.Fatalf("MarshalBinary(%v) len = %d, want 8", id, len(b))
+		}
+		var got EntityId
+		if err := got.UnmarshalBinary(b); err != nil {
+			t.Fatalf("UnmarshalBinary: %v", err)
+		}
+		if got != id {
+			t.Fatalf("round trip = %v, want %v", got, id)
+		}
+	}
+}
+
+func TestEntityIdUnmarshalWrongLength(t *testing.T) {
+	var e EntityId
+	if err := e.UnmarshalBinary([]byte{1, 2, 3}); err == nil {
+		t.Fatal("expected error for wrong-length input, got nil")
+	}
+}
+
 func TestEntityIdCompareSortsDeterministically(t *testing.T) {
 	ids := []EntityId{newEntityId(5), newEntityId(1), newEntityId(3), newEntityId(2), newEntityId(4)}
 	slices.SortFunc(ids, EntityId.Compare)
