@@ -50,10 +50,6 @@ When planning tasks, provide concrete implementation steps without time estimate
 
 * When removing logic, don't leave comments about it. If things don't exist, we don't need to mention them
 
-## Skill Creation
-
-When creating skills, invoke both `/skill-development` and `/skill-creator` for comprehensive coverage. They provide complementary guidance: `/skill-creator` covers core design principles and conciseness, while `/skill-development` covers writing style rules, trigger descriptions, and validation.
-
 ## Interactive Mode Git Workflow
 
 When running in an interactive session (i.e., a user is directly interacting with Claude Code):
