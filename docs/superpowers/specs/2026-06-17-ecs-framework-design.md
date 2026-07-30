@@ -297,6 +297,10 @@ parallelizes only systems with disjoint mutable access (the Bevy model). That sc
 consumer's responsibility; the framework enables concurrency but does not by itself guarantee
 data-race freedom across overlapping mutable access.
 
+A separate requirement, concurrent mutation of *disjoint entity sets* within one world, is worked
+out in `2026-07-30-disjoint-parallel-mutation.md`. It is a proposed design awaiting agreement, and
+nothing in it is implemented.
+
 ## Future extension seams
 
 These are not built in version 1. The point is that each can be added without breaking callers.

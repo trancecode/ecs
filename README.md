@@ -15,6 +15,7 @@ Requires Go 1.26. Standard library only.
 * API reference (canonical, always current): https://pkg.go.dev/github.com/trancecode/ecs/ecs
 * Hosted godoc (GitHub Pages): https://trancecode.github.io/ecs/
 * Design and rationale: [`docs/superpowers/specs/2026-06-17-ecs-framework-design.md`](docs/superpowers/specs/2026-06-17-ecs-framework-design.md)
+* Proposed (not implemented): [concurrent mutation of disjoint entity sets](docs/superpowers/specs/2026-07-30-disjoint-parallel-mutation.md)
 
 ## Install
 
