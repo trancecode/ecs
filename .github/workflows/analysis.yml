@@ -3,16 +3,8 @@ name: Code Analysis
 on:
   push:
     branches: [main]
-    paths-ignore:
-      - '**.md'
-      - 'LICENSE'
-      - 'doc/**'
   pull_request:
     branches: [main]
-    paths-ignore:
-      - '**.md'
-      - 'LICENSE'
-      - 'doc/**'
   workflow_dispatch:
 
 permissions:
