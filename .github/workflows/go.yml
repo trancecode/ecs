@@ -3,29 +3,17 @@ name: Go
 on:
   push:
     branches: [main]
+
   pull_request:
+    branches: [main]
+
 
 permissions:
   contents: read
 
 jobs:
   check:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      # Uses the Go version declared in go.mod, and the latest patch of it, so a
-      # version bump or a toolchain regression is caught here.
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
-          check-latest: true
-
-      - name: Go version
-        run: go version
-
-      - name: Build
-        run: go build ./...
-
-      - name: Test (race)
-        run: go test ./... -race
+    uses: trancecode/github-workflows/.github/workflows/go-build-test.yml@main
+    with:
+      system-packages: ''
+      test-command: 'go test ./... -race'
