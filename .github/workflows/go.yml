@@ -17,3 +17,4 @@ jobs:
     with:
       system-packages: ''
       test-command: 'go test ./... -race'
+      ignore-paths: '*.md LICENSE docs/**'

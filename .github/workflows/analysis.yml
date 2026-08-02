@@ -17,3 +17,4 @@ jobs:
       system-packages: ''
       golangci-args: '--disable=staticcheck'
       staticcheck-checks: 'inherit'
+      ignore-paths: '*.md LICENSE docs/**'
