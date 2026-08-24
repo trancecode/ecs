@@ -8,7 +8,7 @@ Structural changes (adding or removing components, creating or destroying entiti
 apply immediately outside iteration and are **deferred to an automatic flush during
 iteration**, so the pointers you hold stay valid for the whole loop.
 
-Requires Go 1.26. Standard library only.
+Requires Go 1.27. Standard library only.
 
 ## Documentation
 
