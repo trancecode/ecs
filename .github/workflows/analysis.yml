@@ -15,6 +15,11 @@ jobs:
     uses: trancecode/github-workflows/.github/workflows/go-analysis.yml@main
     with:
       system-packages: ''
+      # Go 1.27.2 writes export data version 5, which the shared defaults
+      # (staticcheck 2026.2.1, golangci-lint v2.13.1) cannot read. Drop these
+      # once trancecode/github-workflows bumps its defaults past them.
+      staticcheck-version: '2026.2.2'
+      golangci-version: 'v2.14.0'
       golangci-args: '--disable=staticcheck'
       staticcheck-checks: 'inherit'
       ignore-paths: '*.md LICENSE docs/**'
