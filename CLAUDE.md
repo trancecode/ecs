@@ -18,10 +18,6 @@ For branch naming, commit formatting, pre-commit checks, and PR conventions, see
 
 * When removing logic, don't leave comments about it. If things don't exist, we don't need to mention them
 
-## Git Workflow
-
-- If the task involves large or complex changes, ask the user whether they prefer a direct commit to `main` or a PR
-
 ## Repository-Specific Guidelines
 
 This repository is a small, standalone Entity Component System (ECS) library in Go. It has no runtime dependencies (standard library only) and is consumed as a module by other projects, starting with `nrg`.
@@ -47,7 +43,7 @@ Never hardcode a `go-version:` literal in a workflow. Because nothing else carri
 
 ### Dependencies
 
-* No third-party dependencies, and that is a deliberate property of a foundational library. A new dependency is a significant decision; if one is ever genuinely needed, call it out prominently in the PR description (name, version, purpose, justification, and whether it is test-only).
+* No third-party dependencies, and that is a deliberate property of a foundational library. A new dependency is a significant decision; if one is ever genuinely needed, call it out prominently in the commit message (name, version, purpose, justification, and whether it is test-only).
 
 ### Verification before pushing
 
